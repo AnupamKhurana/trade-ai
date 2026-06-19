@@ -302,7 +302,18 @@ export function StockChart({ data, period, setPeriod }: StockChartProps) {
                                 }}
                             />
 
-                            <Bar yAxisId="volume" dataKey="Volume" fill="#cbd5e1" opacity={0.3} barSize={visibleData.length > 50 ? 2 : 5} isAnimationActive={false} />
+                            <Bar yAxisId="volume" dataKey="Volume" isAnimationActive={false} barSize={visibleData.length > 80 ? 2 : visibleData.length > 40 ? 4 : 8}>
+                                {visibleData.map((entry, index) => {
+                                    const isUp = entry.Close > entry.Open;
+                                    return (
+                                        <Cell 
+                                            key={`vol-cell-${index}`} 
+                                            fill={isUp ? "#10b981" : "#ef4444"} 
+                                            opacity={0.35} 
+                                        />
+                                    );
+                                })}
+                            </Bar>
 
                             {chartType === "line" ? (
                                 <Line
