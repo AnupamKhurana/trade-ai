@@ -119,6 +119,26 @@ start_services() {
     banner
     ensure_dirs
 
+    # Check for required binaries
+    local missing_deps=0
+    if ! command -v python3 &> /dev/null; then
+        log_err "python3 is not installed or not in PATH."
+        missing_deps=1
+    fi
+    if ! command -v node &> /dev/null; then
+        log_err "node (Node.js) is not installed or not in PATH."
+        missing_deps=1
+    fi
+    if ! command -v npm &> /dev/null; then
+        log_err "npm is not installed or not in PATH."
+        missing_deps=1
+    fi
+
+    if [ $missing_deps -eq 1 ]; then
+        log_err "Please install the missing dependencies and try again."
+        exit 1
+    fi
+
     # Check if already running
     if [ -f "$PID_DIR/backend.pid" ] && kill -0 "$(cat "$PID_DIR/backend.pid")" 2>/dev/null; then
         log_warn "Backend is already running (PID $(cat "$PID_DIR/backend.pid")). Run './launch.sh stop' first."
