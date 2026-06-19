@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+requests
+pandas
+numpy
+yfinance
+duckduckgo-search
+langchain
+langchain-openai
+langgraph
+llama-cpp-python
+sqlalchemy
+pydantic-settings
+python-multipart
+httpx
+beautifulsoup4
+aiohttp
