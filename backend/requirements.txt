@@ -4,7 +4,7 @@ requests
 pandas
 numpy
 yfinance
-duckduckgo-search
+ddgs
 langchain
 langchain-openai
 langgraph

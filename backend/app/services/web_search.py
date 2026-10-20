@@ -1,10 +1,11 @@
 import concurrent.futures
 from typing import List
 
-try:
-    from ddgs import DDGS as _DDGS            # ddgs >= 9.x (new package name)
-except ImportError:
-    from duckduckgo_search import DDGS as _DDGS  # fallback
+from ddgs import DDGS  # duckduckgo_search was renamed to ddgs; the old package can hang
+
+# Per-request timeout (seconds) so a slow or rate-limited search can't stall
+# the news feed or the advisor.
+SEARCH_TIMEOUT = 10
 
 
 def parallel_web_search(queries: List[str]) -> str:
@@ -19,9 +20,9 @@ def parallel_web_search(queries: List[str]) -> str:
 
     def fetch(q: str):
         try:
-            results = _DDGS().text(q, max_results=3)
+            results = DDGS(timeout=SEARCH_TIMEOUT).text(q, max_results=3)
             if not results:
-                results = _DDGS().news(q, max_results=3)
+                results = DDGS(timeout=SEARCH_TIMEOUT).news(q, max_results=3)
             return q, results or []
         except Exception:
             return q, []
@@ -41,31 +42,35 @@ def parallel_web_search(queries: List[str]) -> str:
                     snippet = r.get("body", r.get("snippet", ""))
                     all_results.append(f"Title: {title}\nURL: {url}\nSnippet: {snippet}")
 
+    if not all_results:
+        # DuckDuckGo rate-limits free use now and then; Google News RSS is a
+        # keyless fallback so the advisor still gets something current.
+        for q in variations:
+            for r in web_search_service.search_google_news_rss(q, max_results=3):
+                if r["href"] not in seen_urls:
+                    seen_urls.add(r["href"])
+                    all_results.append(f"Title: {r['title']}\nURL: {r['href']}\nSnippet: {r['body']}")
+
     return "\n\n".join(all_results[:10]) if all_results else "No results found."
 
-
-from duckduckgo_search import DDGS
 
 class WebSearchService:
     def search(self, query: str, max_results: int = 5):
         try:
-            with DDGS() as ddgs:
-                # Force India region (English) for better stock news
-                results = list(ddgs.text(query, region='in-en', max_results=max_results))
-                print(f"DEBUG: Web Search for '{query}' returned {len(results)} results.")
-                return results
+            # Force India region (English) for better stock news
+            results = DDGS(timeout=SEARCH_TIMEOUT).text(query, region='in-en', max_results=max_results)
+            print(f"DEBUG: Web Search for '{query}' returned {len(results)} results.")
+            return results
         except Exception as e:
             print(f"Error searching web: {e}")
             return []
 
     def search_news(self, query: str, max_results: int = 5):
         try:
-            with DDGS() as ddgs:
-                # Use news-specific search from DuckDuckGo
-                # We can also append trusted sites to the query if needed, but ddgs.news is usually better
-                results = list(ddgs.news(query, region='in-en', max_results=max_results))
-                print(f"DEBUG: News Search for '{query}' returned {len(results)} results.")
-                return results
+            # Use news-specific search from DuckDuckGo
+            results = DDGS(timeout=SEARCH_TIMEOUT).news(query, region='in-en', max_results=max_results)
+            print(f"DEBUG: News Search for '{query}' returned {len(results)} results.")
+            return results
         except Exception as e:
             print(f"Error searching news: {e}")
             return []
