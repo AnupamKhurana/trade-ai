@@ -13,6 +13,10 @@ from typing import AsyncGenerator, List, Dict, Any, Optional
 from app.core.config import settings
 
 
+class LLMUnavailableError(RuntimeError):
+    """The LLM server is unreachable or returned an error."""
+
+
 class LLMEngine:
     _instance = None
 
@@ -31,6 +35,11 @@ class LLMEngine:
     # Blocking one-shot request (prediction / sentiment)                   #
     # ------------------------------------------------------------------ #
     def chat(self, messages, max_tokens=-1, temperature=0.7):  # -1 = unlimited for local llama.cpp
+        """
+        Blocking one-shot completion. Raises LLMUnavailableError when the
+        server can't be reached or returns an error, so callers never mistake
+        an outage for a real answer (and never cache one).
+        """
         payload = {
             "messages": messages,
             "max_tokens": max_tokens,
@@ -42,18 +51,16 @@ class LLMEngine:
             response = requests.post(self.api_url, json=payload, timeout=300)
             response.raise_for_status()
             res_json = response.json()
-            print(f"RESPONSE: {json.dumps(res_json, indent=2)}")
-            return res_json
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.ConnectionError as e:
             print("ERROR: Connection to Llama Server failed.")
-            return {
-                "choices": [{"message": {"content": "Error: Could not connect to Local Llama Server. Is it running on port 8080?"}}]
-            }
+            raise LLMUnavailableError(
+                f"Could not connect to the local LLM server at {settings.LLAMA_API_URL}. Is it running?"
+            ) from e
         except Exception as e:
             print(f"LLM API Error: {e}")
-            return {
-                "choices": [{"message": {"content": f"Error interacting with AI: {str(e)}"}}]
-            }
+            raise LLMUnavailableError(f"Error interacting with AI: {e}") from e
+        print(f"RESPONSE: {json.dumps(res_json, indent=2)}")
+        return res_json
 
     # ------------------------------------------------------------------ #
     # Async SSE streaming generator (agentic advisor loop)                 #

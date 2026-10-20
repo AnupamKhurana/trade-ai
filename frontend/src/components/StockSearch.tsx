@@ -3,29 +3,25 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Search } from "lucide-react";
 import { Card } from "./ui/card";
-import stockList from "@/lib/stocks.json";
-import usStockList from "@/lib/us_stocks.json";
+import { useStockList, StockListItem } from "@/lib/useStockList";
 
 interface StockSearchProps {
     onSearch: (symbol: string, exchange: string) => void;
     isLoading?: boolean;
 }
 
-const STOCK_LIST = stockList;
-const US_STOCK_LIST = usStockList;
-
 export function StockSearch({ onSearch, isLoading }: StockSearchProps) {
     const [query, setQuery] = useState("");
     const [exchange, setExchange] = useState("NSE");
-    const [suggestions, setSuggestions] = useState<typeof STOCK_LIST>([]);
+    const [suggestions, setSuggestions] = useState<StockListItem[]>([]);
     const [showDropdown, setShowDropdown] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const stockList = useStockList(exchange);
 
     useEffect(() => {
         if (query.trim().length > 0) {
             const lowerQuery = query.toLowerCase();
-            const currentList = exchange === "US" ? US_STOCK_LIST : STOCK_LIST;
-            const filtered = currentList.filter(stock =>
+            const filtered = stockList.filter(stock =>
                 stock.symbol.toLowerCase().includes(lowerQuery) ||
                 stock.name.toLowerCase().includes(lowerQuery)
             ).slice(0, 50);
@@ -34,7 +30,7 @@ export function StockSearch({ onSearch, isLoading }: StockSearchProps) {
             setSuggestions([]);
             setShowDropdown(false);
         }
-    }, [query, exchange]);
+    }, [query, stockList]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {

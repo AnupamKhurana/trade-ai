@@ -32,6 +32,12 @@ export interface PortfolioResponse {
 }
 
 export const api = {
+    async getSymbols(): Promise<{ symbol: string; name: string }[]> {
+        const res = await fetch(`${API_URL}/market/symbols`);
+        if (!res.ok) throw new Error("Failed to fetch symbol list");
+        return res.json();
+    },
+
     async getQuote(symbol: string, exchange: string = "NSE") {
         const res = await fetch(`${API_URL}/market/quote/${symbol}?exchange=${exchange}`);
         if (!res.ok) throw new Error("Failed to fetch quote");

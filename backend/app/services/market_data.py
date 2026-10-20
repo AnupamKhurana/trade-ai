@@ -72,12 +72,17 @@ class MarketDataService:
         ticker_symbol = self._get_ticker(symbol, exchange)
         ticker = yf.Ticker(ticker_symbol)
         try:
-            data = ticker.history(period="1d")
+            # Fetch a few days so the day change can be measured against the
+            # previous session's close, as brokers and exchanges report it.
+            data = ticker.history(period="5d")
             if data.empty:
                 return None
             
             current_price = data["Close"].iloc[-1]
-            open_price = data["Open"].iloc[0]
+            if len(data) >= 2:
+                previous_close = data["Close"].iloc[-2]
+            else:
+                previous_close = data["Open"].iloc[-1]
             
             # Default values
             long_name = symbol
@@ -201,8 +206,9 @@ class MarketDataService:
                 "ticker": ticker_symbol,
                 "name": long_name,
                 "price": round(current_price, 2),
-                "change": round(current_price - open_price, 2),
-                "change_percent": round(((current_price - open_price) / open_price) * 100, 2),
+                "change": round(current_price - previous_close, 2),
+                "change_percent": round(((current_price - previous_close) / previous_close) * 100, 2),
+                "previous_close": round(previous_close, 2),
                 "currency": currency,
                 "summary": summary,
                 "market_cap": market_cap,

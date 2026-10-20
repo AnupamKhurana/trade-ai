@@ -4,10 +4,16 @@ from app.services.market_data import market_service
 from app.services.sentiment import sentiment_service
 from app.services.prediction import prediction_service
 from app.services.news import news_service
+from app.services.stock_updater import stock_update_service
 import csv
 import io
 
 router = APIRouter()
+
+@router.get("/symbols")
+def get_symbols():
+    """Latest NSE equity list ({symbol, name}); empty until the first download."""
+    return stock_update_service.get_stocks()
 
 @router.get("/quote/{symbol}")
 def get_quote(symbol: str, exchange: str = "NSE"):

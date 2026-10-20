@@ -16,12 +16,16 @@ HEADERS = {
 
 class StockUpdateService:
     def __init__(self):
-        # Path to frontend stocks.json
-        self.output_path = Path(__file__).parent.parent.parent.parent / "frontend" / "src" / "lib" / "stocks.json"
+        # Written to the backend's untracked data dir and served via
+        # /api/market/symbols. The frontend bundles a seed copy as a fallback,
+        # so the daily refresh never touches tracked source files.
+        self.output_path = Path(__file__).parent.parent.parent / "data" / "stocks.json"
         
         # Path to downloads folder
         self.downloads_dir = Path(__file__).parent.parent.parent / "downloads"
         self.downloads_dir.mkdir(exist_ok=True)
+        self._stocks_cache: list | None = None
+        self._stocks_mtime: float | None = None
 
     def update_stocks(self):
         print("Checking for Stock List Updates...")
@@ -62,6 +66,21 @@ class StockUpdateService:
 
         except Exception as e:
             print(f"Error updating stock list: {e}")
+
+    def get_stocks(self) -> list:
+        """Return the latest downloaded NSE equity list, or [] if none yet."""
+        if not self.output_path.exists():
+            return []
+        mtime = self.output_path.stat().st_mtime
+        if self._stocks_cache is None or mtime != self._stocks_mtime:
+            try:
+                with open(self.output_path) as f:
+                    self._stocks_cache = json.load(f)
+                self._stocks_mtime = mtime
+            except (OSError, json.JSONDecodeError) as e:
+                print(f"Error reading stock list: {e}")
+                return []
+        return self._stocks_cache
 
     def _is_updated_today(self):
         # Must have both JSON and CSV

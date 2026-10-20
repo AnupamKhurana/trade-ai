@@ -8,8 +8,7 @@ class SentimentService:
         cache_key = f"sentiment:{symbol}:{exchange}"
         cached = cache.get(cache_key)
         if cached:
-            cached["source"] = "cache"
-            return cached
+            return {**cached, "source": "cache"}
 
         # 1. Get News
         from app.services.news_aggregator import news_aggregator
@@ -81,17 +80,16 @@ Return JSON only in this exact format:
             if not result:
                 # Regex fallback extraction of fields
                 import re
-                score = 0.0
                 summary = "Neutral market sentiment."
                 
                 score_match = re.search(r'"score"\s*:\s*(-?\d+\.?\d*)', cleaned_content)
                 if not score_match:
                     score_match = re.search(r"'score'\s*:\s*(-?\d+\.?\d*)", cleaned_content)
-                if score_match:
-                    try:
-                        score = float(score_match.group(1))
-                    except ValueError:
-                        pass
+                if not score_match:
+                    # Nothing usable came back; report an error rather than
+                    # inventing (and caching) a neutral score.
+                    raise ValueError(f"Could not parse sentiment from LLM output: {content[:200]!r}")
+                score = float(score_match.group(1))
                 
                 summary_match = re.search(r'"summary"\s*:\s*"([^"]+)"', cleaned_content)
                 if not summary_match:

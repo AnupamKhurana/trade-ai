@@ -6,8 +6,7 @@ import { api, PortfolioResponse } from "@/lib/api";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Trash2, Plus, ArrowUpRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import stockList from "@/lib/stocks.json";
-import usStockList from "@/lib/us_stocks.json";
+import { useStockList } from "@/lib/useStockList";
 
 export default function PortfolioPage() {
     const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
@@ -16,6 +15,7 @@ export default function PortfolioPage() {
     // Form states
     const [symbol, setSymbol] = useState("");
     const [exchange, setExchange] = useState("NSE");
+    const stockList = useStockList(exchange);
     const [qty, setQty] = useState("");
     const [buyPrice, setBuyPrice] = useState("");
     const [date, setDate] = useState("");
@@ -27,8 +27,7 @@ export default function PortfolioPage() {
     useEffect(() => {
         if (symbol.trim().length > 0) {
             const lowerQuery = symbol.toLowerCase();
-            const currentList = exchange === "US" ? usStockList : stockList;
-            const filtered = currentList.filter(stock =>
+            const filtered = stockList.filter(stock =>
                 stock.symbol.toLowerCase().includes(lowerQuery) ||
                 stock.name.toLowerCase().includes(lowerQuery)
             ).slice(0, 50);
@@ -37,7 +36,7 @@ export default function PortfolioPage() {
             setSuggestions([]);
             setShowDropdown(false);
         }
-    }, [symbol, exchange]);
+    }, [symbol, stockList]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {

@@ -7,13 +7,13 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { ArrowUpRight, Plus, RefreshCw, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import stockList from "@/lib/stocks.json";
-import usStockList from "@/lib/us_stocks.json";
+import { useStockList } from "@/lib/useStockList";
 
 export default function ComparePage() {
     const [stocks, setStocks] = useState<{ symbol: string; exchange: string }[]>([]);
     const [symbolInput, setSymbolInput] = useState("");
     const [exchangeInput, setExchangeInput] = useState("NSE");
+    const stockList = useStockList(exchangeInput);
     const [period, setPeriod] = useState("1mo");
 
     const [loading, setLoading] = useState(false);
@@ -27,8 +27,7 @@ export default function ComparePage() {
     useEffect(() => {
         if (symbolInput.trim().length > 0) {
             const lowerQuery = symbolInput.toLowerCase();
-            const currentList = exchangeInput === "US" ? usStockList : stockList;
-            const filtered = currentList.filter(stock =>
+            const filtered = stockList.filter(stock =>
                 stock.symbol.toLowerCase().includes(lowerQuery) ||
                 stock.name.toLowerCase().includes(lowerQuery)
             ).slice(0, 50);
@@ -37,7 +36,7 @@ export default function ComparePage() {
             setSuggestions([]);
             setShowDropdown(false);
         }
-    }, [symbolInput, exchangeInput]);
+    }, [symbolInput, stockList]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {

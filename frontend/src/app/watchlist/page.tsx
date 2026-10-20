@@ -7,14 +7,14 @@ import PriceAlerts from "@/components/PriceAlerts";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Trash2, Plus, ArrowUpRight, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import stockList from "@/lib/stocks.json";
-import usStockList from "@/lib/us_stocks.json";
+import { useStockList } from "@/lib/useStockList";
 
 export default function WatchlistPage() {
     const [watchlist, setWatchlist] = useState<WatchlistResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [symbol, setSymbol] = useState("");
     const [exchange, setExchange] = useState("NSE");
+    const stockList = useStockList(exchange);
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [showDropdown, setShowDropdown] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
@@ -22,8 +22,7 @@ export default function WatchlistPage() {
     useEffect(() => {
         if (symbol.trim().length > 0) {
             const lowerQuery = symbol.toLowerCase();
-            const currentList = exchange === "US" ? usStockList : stockList;
-            const filtered = currentList.filter(stock =>
+            const filtered = stockList.filter(stock =>
                 stock.symbol.toLowerCase().includes(lowerQuery) ||
                 stock.name.toLowerCase().includes(lowerQuery)
             ).slice(0, 50);
@@ -32,7 +31,7 @@ export default function WatchlistPage() {
             setSuggestions([]);
             setShowDropdown(false);
         }
-    }, [symbol, exchange]);
+    }, [symbol, stockList]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {

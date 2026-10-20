@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { RefreshCw, ExternalLink, Newspaper } from "lucide-react";
@@ -23,21 +23,30 @@ export function NewsFeed({ symbol, exchange = "NSE" }: NewsFeedProps) {
         }));
     };
 
+    // Only the latest request may update state, so news for a previously
+    // selected stock can't replace the current stock's news.
+    const requestIdRef = useRef(0);
+
     const fetchNews = async () => {
         if (!symbol) return;
+        const requestId = ++requestIdRef.current;
         setLoading(true);
         try {
             const res = await api.getNews(symbol, exchange);
+            if (requestId !== requestIdRef.current) return;
             setArticles(res.articles || []);
             setSources(res.sources || []);
         } catch (e) {
+            if (requestId !== requestIdRef.current) return;
             console.error("Failed to fetch news:", e);
         } finally {
-            setLoading(false);
+            if (requestId === requestIdRef.current) setLoading(false);
         }
     };
 
     useEffect(() => {
+        setArticles([]);
+        setSources([]);
         fetchNews();
         const interval = setInterval(fetchNews, 180000); // 3 minutes auto-refresh
         return () => clearInterval(interval);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { StockSearch } from "@/components/StockSearch";
 import { StockChart } from "@/components/StockChart";
@@ -96,6 +96,11 @@ export default function Dashboard() {
   const [currentExchange, setCurrentExchange] = useState("NSE");
   const [period, setPeriod] = useState("1mo");
 
+  // Bumped on every new search. Responses check it before updating state so a
+  // slow reply for a previously selected stock can't overwrite the current one.
+  const searchIdRef = useRef(0);
+  const historyRequestRef = useRef(0);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -150,9 +155,12 @@ export default function Dashboard() {
     setPeriod(p);
     if (!currentSymbol) return;
 
+    const searchId = searchIdRef.current;
+    const requestId = ++historyRequestRef.current;
     try {
       const interval = p === "1d" ? "1m" : p === "5d" ? "5m" : "1d";
       const history = await api.getHistory(currentSymbol, p, interval, currentExchange);
+      if (searchId !== searchIdRef.current || requestId !== historyRequestRef.current) return;
       setHistoryData(history);
     } catch (e) {
       console.error("Failed to update history period", e);
@@ -160,6 +168,9 @@ export default function Dashboard() {
   };
 
   const handleSearch = async (symbol: string, exchange: string = "NSE") => {
+    const searchId = ++searchIdRef.current;
+    const isCurrent = () => searchId === searchIdRef.current;
+    historyRequestRef.current++;
     setLoading(true);
     setHasSearched(true);
     setCurrentSymbol(symbol);
@@ -180,35 +191,41 @@ export default function Dashboard() {
 
     api.getQuote(symbol, exchange)
       .then(res => {
+        if (!isCurrent()) return;
         setStockData(res);
         setLoadingStates(prev => ({ ...prev, details: false }));
       })
       .catch(e => {
+        if (!isCurrent()) return;
         setError("Could not find stock. Please check the symbol.");
         setLoadingStates(prev => ({ ...prev, details: false }));
         setLoading(false);
       });
 
     api.getHistory(symbol, "1mo", "1d", exchange)
-      .then(res => setHistoryData(res))
+      .then(res => { if (isCurrent()) setHistoryData(res); })
       .catch(e => console.error("History fetch failed", e));
 
     api.getSentiment(symbol, exchange)
       .then(res => {
+        if (!isCurrent()) return;
         setSentimentData(res);
         setLoadingStates(prev => ({ ...prev, sentiment: false }));
       })
       .catch(e => {
+        if (!isCurrent()) return;
         console.error("Sentiment fetch failed", e);
         setLoadingStates(prev => ({ ...prev, sentiment: false }));
       });
 
     api.getPrediction(symbol, exchange)
       .then(res => {
+        if (!isCurrent()) return;
         setPredictionData(res);
         setLoadingStates(prev => ({ ...prev, prediction: false }));
       })
       .catch(e => {
+        if (!isCurrent()) return;
         console.error("Prediction fetch failed", e);
         setLoadingStates(prev => ({ ...prev, prediction: false }));
       });
@@ -218,16 +235,20 @@ export default function Dashboard() {
 
   const handleRetrySentiment = () => {
     if (!currentSymbol) return;
+    const searchId = searchIdRef.current;
+    const isCurrent = () => searchId === searchIdRef.current;
 
     setSentimentData(null);
     setLoadingStates(prev => ({ ...prev, sentiment: true }));
 
     api.getSentiment(currentSymbol, currentExchange)
       .then(res => {
+        if (!isCurrent()) return;
         setSentimentData(res);
         setLoadingStates(prev => ({ ...prev, sentiment: false }));
       })
       .catch(e => {
+        if (!isCurrent()) return;
         console.error("Sentiment retry fetch failed", e);
         setLoadingStates(prev => ({ ...prev, sentiment: false }));
       });
@@ -235,16 +256,20 @@ export default function Dashboard() {
 
   const handleRetryPrediction = () => {
     if (!currentSymbol) return;
+    const searchId = searchIdRef.current;
+    const isCurrent = () => searchId === searchIdRef.current;
 
     setPredictionData(null);
     setLoadingStates(prev => ({ ...prev, prediction: true }));
 
     api.getPrediction(currentSymbol, currentExchange)
       .then(res => {
+        if (!isCurrent()) return;
         setPredictionData(res);
         setLoadingStates(prev => ({ ...prev, prediction: false }));
       })
       .catch(e => {
+        if (!isCurrent()) return;
         console.error("Prediction retry fetch failed", e);
         setLoadingStates(prev => ({ ...prev, prediction: false }));
       });

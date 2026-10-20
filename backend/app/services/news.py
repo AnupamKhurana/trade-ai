@@ -37,9 +37,10 @@ class NewsService:
             body_snippet = (r.get("body") or "")[:150]
             headlines_input.append(f"Art [{i}]: T: {r['title']} | S: {body_snippet} | L: {r['href']} | D: {date_str}")
         
+        articles_block = "\n".join(headlines_input)
         prompt = f"""Compile the top 4 most stock-impacting news items for {symbol} from these raw summaries.
 Raw articles:
-{"\n".join(headlines_input)}
+{articles_block}
 
 Return JSON only in this exact format:
 {{

@@ -8,6 +8,7 @@ Provides a full agentic streaming loop for the AI Advisor:
 
 Tool registry is extensible: add any typed Python function to STOCK_TOOLS.
 """
+import asyncio
 import datetime
 import json
 from typing import AsyncGenerator, Dict, Any, List, Optional
@@ -217,7 +218,9 @@ async def run_agent_stream(
                 try:
                     if isinstance(func_args, str):
                         func_args = json.loads(func_args)
-                    result = tool_func(**func_args)
+                    # Tools do blocking network I/O; run them in a worker thread
+                    # so other requests aren't stalled while a tool runs.
+                    result = await asyncio.to_thread(tool_func, **func_args)
                 except Exception as e:
                     result = f"Tool error: {e}"
             else:
