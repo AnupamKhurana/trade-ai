@@ -18,8 +18,8 @@ TradeAI Terminal is an AI-powered stock market intelligence and analysis dashboa
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 15, React, TypeScript, TailwindCSS, Lucide Icons, Recharts.
-- **Backend**: FastAPI, Uvicorn, LangChain & LangGraph, DuckDuckGo Search, yFinance.
+- **Frontend**: Next.js 16, React, TypeScript, TailwindCSS, Lucide Icons, Recharts.
+- **Backend**: FastAPI, Uvicorn, ddgs (DuckDuckGo Search), yfinance, jugaad-data, nse and bse.
 - **LLM/AI**: Local `llama.cpp` server (or any OpenAI-compatible API) running on port 8080.
 
 ---
@@ -28,7 +28,7 @@ TradeAI Terminal is an AI-powered stock market intelligence and analysis dashboa
 
 Make sure your system has the following installed:
 1. **Python 3.10+** (along with `python3-venv`)
-2. **Node.js 18+** (along with `npm`)
+2. **Node.js 20.9+** (along with `npm`)
 3. **Git** (to clone the repository)
 
 ---
@@ -66,6 +66,8 @@ The `launch.sh` script also accepts commands for background management:
 ./launch.sh status     # Checks if backend, frontend, or local LLM server are running
 ./launch.sh restart    # Restarts all TradeAI services
 ```
+
+The backend listens on `127.0.0.1` only, because its API has no login. To reach it from another device on your network, run `TRADEAI_HOST=0.0.0.0 ./launch.sh`. Set `TRADEAI_RELOAD=0` to turn off backend auto-reload. Dependencies are reinstalled only when `requirements.txt` or `package-lock.json` change.
 
 ---
 

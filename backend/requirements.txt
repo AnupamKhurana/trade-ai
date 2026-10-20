@@ -5,11 +5,6 @@ pandas
 numpy
 yfinance
 ddgs
-langchain
-langchain-openai
-langgraph
-llama-cpp-python
-sqlalchemy
 pydantic-settings
 python-multipart
 httpx
