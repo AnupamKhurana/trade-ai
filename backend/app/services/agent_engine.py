@@ -75,11 +75,44 @@ def get_stock_data(symbol: str, exchange: str) -> str:
 
 
 # ------------------------------------------------------------------ #
+# Tool: NSE corporate events                                           #
+# ------------------------------------------------------------------ #
+def get_corporate_events(symbol: str) -> str:
+    """
+    Fetch official NSE corporate events for an Indian stock: recent exchange
+    filings/announcements, dividends/splits/bonuses, and upcoming results dates.
+    Use this for questions about results, dividends, filings or company news.
+
+    Args:
+        symbol: The NSE stock symbol (e.g., RELIANCE, TCS).
+    """
+    try:
+        from app.services.nse_data import nse_data_service
+        events = nse_data_service.get_events(symbol)
+    except Exception as e:
+        return f"Error fetching corporate events for {symbol}: {e}"
+
+    lines = [f"NSE corporate events for {events['symbol']}:"]
+    results = events["upcoming_results"]
+    lines.append("Upcoming results: " + ("; ".join(f"{r['date'][:10] if r['date'] else 'TBA'} ({r['purpose']})" for r in results) or "none scheduled"))
+    actions = events["corporate_actions"]
+    lines.append("Corporate actions (last 30 days): " + ("; ".join(f"{a['subject']} (ex-date {a['ex_date'][:10] if a['ex_date'] else 'N/A'})" for a in actions) or "none"))
+    lines.append("Recent filings:")
+    for a in events["announcements"][:8]:
+        when = a["date"][:10] if a["date"] else "N/A"
+        lines.append(f"  - {when} {a['subject']}: {a['text'][:200]}")
+    if not events["announcements"]:
+        lines.append("  - none in the last 30 days")
+    return "\n".join(lines)
+
+
+# ------------------------------------------------------------------ #
 # Tool registry — add new tools here                                  #
 # ------------------------------------------------------------------ #
 STOCK_TOOLS = {
     "web_search": web_search,
     "get_stock_data": get_stock_data,
+    "get_corporate_events": get_corporate_events,
 }
 
 
@@ -105,9 +138,10 @@ def get_agent_harness(symbol: Optional[str] = None, exchange: str = "NSE") -> st
         f"You are TradeAI, an advanced AI stock market analyst with access to real-time tools.\n"
         f"Current date/time: {now}\n"
         f"Active stock under analysis: **{symbol}** on **{exchange}**.\n\n"
-        f"You have two tools available:\n"
+        f"You have three tools available:\n"
         f"  • web_search — search the internet for live news, prices, analyst reports, earnings.\n"
-        f"  • get_stock_data — fetch live technical indicators (RSI, MACD, SMA) for any stock.\n\n"
+        f"  • get_stock_data — fetch live technical indicators (RSI, MACD, SMA) for any stock.\n"
+        f"  • get_corporate_events — official NSE filings, dividends/splits and upcoming results dates.\n\n"
         f"Workflow:\n"
         f"  1. For any question requiring real-time or recent data, ALWAYS call a tool first.\n"
         f"  2. Synthesise tool results with your analysis before responding.\n"

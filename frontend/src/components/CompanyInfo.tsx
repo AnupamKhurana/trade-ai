@@ -74,7 +74,7 @@ export function CompanyInfo({ data }: CompanyInfoProps) {
                         </span>
                     </div>
                     <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium mt-1">
-                        Real-time Data • {data.symbol.endsWith(".BO") ? "BSE" : data.symbol.endsWith(".NS") ? "NSE" : "US"}
+                        {data.data_source ? `Source: ${data.data_source}` : "Market Data"} • {data.exchange}
                     </div>
                 </div>
             </div>
@@ -104,6 +104,12 @@ export function CompanyInfo({ data }: CompanyInfoProps) {
                             <span className="text-muted-foreground">P/B Ratio</span>
                             <span className="font-semibold">{formatNum(data.book_value ? data.price / data.book_value : 0)}x</span>
                         </div>
+                        {data.delivery_percent != null && (
+                            <div className="flex justify-between px-3 py-2" title="Share of today's traded volume taken for delivery (NSE)">
+                                <span className="text-muted-foreground">Delivery %</span>
+                                <span className="font-semibold">{data.delivery_percent.toFixed(1)}%</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 

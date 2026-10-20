@@ -27,6 +27,22 @@ class NewsAggregator:
                     seen_urls.add(url)
                     results.append(item)
 
+        # 0. Exchange filings — the most price-relevant "news" for NSE stocks
+        if exchange.upper() == "NSE":
+            from app.services.nse_data import nse_data_service
+            filings = nse_data_service.get_announcements(symbol, days=14, limit=5)
+            add_results([
+                {
+                    "title": f"{symbol.upper()} filing: {f['subject']}",
+                    "body": f["text"],
+                    "href": f["url"],
+                    "date": f["date"],
+                    "source": "NSE",
+                }
+                for f in filings
+                if f.get("url")
+            ])
+
         # 1. Fetch from yfinance
         try:
             from app.services.market_data import market_service

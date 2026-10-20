@@ -31,6 +31,13 @@ export interface PortfolioResponse {
     };
 }
 
+export interface CorporateEventsResponse {
+    symbol: string;
+    upcoming_results: { date: string | null; purpose: string; description: string }[];
+    corporate_actions: { subject: string; ex_date: string | null; record_date: string | null }[];
+    announcements: { date: string | null; subject: string; text: string; url: string | null }[];
+}
+
 export const api = {
     async getSymbols(): Promise<{ symbol: string; name: string }[]> {
         const res = await fetch(`${API_URL}/market/symbols`);
@@ -181,6 +188,13 @@ export const api = {
     async getNews(symbol: string, exchange: string = "NSE") {
         const res = await fetch(`${API_URL}/market/news/${symbol}?exchange=${exchange}`);
         if (!res.ok) throw new Error("Failed to fetch news");
+        return res.json();
+    },
+
+    // NSE corporate events
+    async getEvents(symbol: string, exchange: string = "NSE"): Promise<CorporateEventsResponse> {
+        const res = await fetch(`${API_URL}/market/events/${symbol}?exchange=${exchange}`);
+        if (!res.ok) throw new Error("Failed to fetch corporate events");
         return res.json();
     },
 

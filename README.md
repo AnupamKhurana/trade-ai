@@ -7,6 +7,7 @@ TradeAI Terminal is an AI-powered stock market intelligence and analysis dashboa
 ## ✨ Features
 
 - **📊 Comprehensive Market Tracking**: View real-time prices, stock details, and historical interactive charts (supporting custom period/interval selection).
+- **🇮🇳 NSE-first Data**: NSE stocks get quotes, daily history and delivery % straight from NSE (via [jugaad-data](https://github.com/jugaad-py/jugaad-data)), plus exchange filings, dividends/splits and upcoming results dates (via [nsefin](https://pypi.org/project/nsefin/)). Yahoo Finance is the fallback and the source for BSE, US and intraday data.
 - **💼 Portfolio & Watchlist Managers**: Track your investments and keep a close eye on stocks you monitor. Your portfolio data and watchlists are stored safely and privately in local JSON files.
 - **📰 Smart News Aggregation**: Automatically fetches the latest financial news for any stock ticker using DuckDuckGo search.
 - **🤖 Agentic Advisor & Multi-Tool Chat**: Chat with a smart advisor that automatically routes your queries, searches the web for current data, and helps you make sense of complex financial trends.

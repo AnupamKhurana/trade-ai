@@ -8,6 +8,7 @@ import { SentimentGauge } from "@/components/SentimentGauge";
 import { AdvisorChat, renderMarkdown } from "@/components/AdvisorChat";
 import { CompanyInfo } from "@/components/CompanyInfo";
 import { NewsFeed } from "@/components/NewsFeed";
+import { CorporateEvents } from "@/components/CorporateEvents";
 import ThemeToggle from "@/components/ThemeToggle";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -420,6 +421,10 @@ export default function Dashboard() {
                 </div>
 
                 {/* News Feed - Fits nicely in the sidebar */}
+                {currentSymbol && currentExchange === "NSE" && (
+                  <CorporateEvents symbol={currentSymbol} exchange={currentExchange} />
+                )}
+
                 {currentSymbol && (
                   <NewsFeed symbol={currentSymbol} exchange={currentExchange} />
                 )}

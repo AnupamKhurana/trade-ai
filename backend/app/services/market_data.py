@@ -2,6 +2,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from app.core.cache import cache, QUOTE_TTL, HISTORY_TTL
+from app.services.nse_data import nse_data_service
 
 class MarketDataService:
     def _get_ticker(self, symbol: str, exchange: str = "NSE") -> str:
@@ -19,6 +20,12 @@ class MarketDataService:
         else:
             # Default: NSE
             return f"{symbol}.NS"
+
+    def _is_nse(self, symbol: str, exchange: str) -> bool:
+        """True when the symbol trades on NSE (no explicit BSE suffix)."""
+        if symbol.upper().endswith(".BO"):
+            return False
+        return symbol.upper().endswith(".NS") or exchange.upper() == "NSE"
 
     def _get_screener_metrics(self, symbol: str) -> dict:
         """Fetches key financial metrics from screener.in for Indian stocks."""
@@ -72,17 +79,29 @@ class MarketDataService:
         ticker_symbol = self._get_ticker(symbol, exchange)
         ticker = yf.Ticker(ticker_symbol)
         try:
-            # Fetch a few days so the day change can be measured against the
-            # previous session's close, as brokers and exchanges report it.
-            data = ticker.history(period="5d")
-            if data.empty:
-                return None
-            
-            current_price = data["Close"].iloc[-1]
-            if len(data) >= 2:
-                previous_close = data["Close"].iloc[-2]
+            # NSE stocks: take price data straight from NSE; yfinance (delayed,
+            # sometimes missing small caps) is the fallback.
+            nse_quote = None
+            if self._is_nse(symbol, exchange):
+                nse_quote = nse_data_service.get_quote(symbol.upper().removesuffix(".NS"))
+
+            if nse_quote:
+                current_price = nse_quote["price"]
+                previous_close = nse_quote["previous_close"]
+                data_source = "NSE"
             else:
-                previous_close = data["Open"].iloc[-1]
+                # Fetch a few days so the day change can be measured against the
+                # previous session's close, as brokers and exchanges report it.
+                data = ticker.history(period="5d")
+                if data.empty:
+                    return None
+
+                current_price = data["Close"].iloc[-1]
+                if len(data) >= 2:
+                    previous_close = data["Close"].iloc[-2]
+                else:
+                    previous_close = data["Open"].iloc[-1]
+                data_source = "Yahoo Finance"
             
             # Default values
             long_name = symbol
@@ -175,6 +194,17 @@ class MarketDataService:
                     if "market_cap" in screener_data:
                         market_cap = screener_data["market_cap"]
 
+            # Exchange-reported values take precedence over Yahoo and Screener
+            if nse_quote:
+                long_name = nse_quote.get("name") or long_name
+                sector = nse_quote.get("sector") or sector
+                industry = nse_quote.get("industry") or industry
+                isin = nse_quote.get("isin") or isin
+                high_52 = nse_quote.get("high_52") or high_52
+                low_52 = nse_quote.get("low_52") or low_52
+                pe_ratio = nse_quote.get("pe_ratio") or pe_ratio
+                market_cap = nse_quote.get("market_cap") or market_cap
+
             # Fetch analyst recommendations
             try:
                 recs = ticker.recommendations
@@ -224,7 +254,11 @@ class MarketDataService:
                 "industry": industry,
                 "isin": isin,
                 "analyst_ratings": analyst_ratings,
-                "exchange": exchange
+                "exchange": exchange,
+                "volume": nse_quote.get("volume") if nse_quote else None,
+                "delivery_percent": nse_quote.get("delivery_percent") if nse_quote else None,
+                "sector_pe": nse_quote.get("sector_pe") if nse_quote else None,
+                "data_source": data_source,
             }
             cache.set(cache_key, result, QUOTE_TTL)
             return result
@@ -249,7 +283,11 @@ class MarketDataService:
             elif interval in ("5m", "15m") and period not in ("1d", "5d", "1mo"):
                 period = "5d"
         
-        data = ticker.history(period=period, interval=interval)
+        data = None
+        if interval == "1d" and self._is_nse(symbol, exchange):
+            data = nse_data_service.get_daily_history(symbol.upper().removesuffix(".NS"), period)
+        if data is None or data.empty:
+            data = ticker.history(period=period, interval=interval)
         
         if data.empty:
             return []

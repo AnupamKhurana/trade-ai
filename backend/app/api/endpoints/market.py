@@ -5,6 +5,7 @@ from app.services.sentiment import sentiment_service
 from app.services.prediction import prediction_service
 from app.services.news import news_service
 from app.services.stock_updater import stock_update_service
+from app.services.nse_data import nse_data_service
 import csv
 import io
 
@@ -39,6 +40,13 @@ def get_prediction(symbol: str, exchange: str = "NSE"):
 def get_news(symbol: str, exchange: str = "NSE"):
     """Dedicated news endpoint for a stock symbol, augmented by LLM."""
     return news_service.get_augmented_news(symbol, exchange)
+
+@router.get("/events/{symbol}")
+def get_events(symbol: str, exchange: str = "NSE"):
+    """NSE filings, corporate actions and upcoming results for a symbol."""
+    if exchange.upper() != "NSE":
+        return {"symbol": symbol.upper(), "upcoming_results": [], "corporate_actions": [], "announcements": []}
+    return nse_data_service.get_events(symbol)
 
 @router.get("/export/{symbol}")
 def export_csv(symbol: str, period: str = "3mo", exchange: str = "NSE"):
