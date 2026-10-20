@@ -33,7 +33,7 @@ export interface PortfolioResponse {
 
 export interface CorporateEventsResponse {
     symbol: string;
-    upcoming_results: { date: string | null; purpose: string; description: string }[];
+    upcoming_results: { date: string | null; purpose: string; description: string | null }[];
     corporate_actions: { subject: string; ex_date: string | null; record_date: string | null }[];
     announcements: { date: string | null; subject: string; text: string; url: string | null }[];
 }

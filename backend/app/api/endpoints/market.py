@@ -6,6 +6,7 @@ from app.services.prediction import prediction_service
 from app.services.news import news_service
 from app.services.stock_updater import stock_update_service
 from app.services.nse_data import nse_data_service
+from app.services.bse_data import bse_data_service
 import csv
 import io
 
@@ -43,10 +44,13 @@ def get_news(symbol: str, exchange: str = "NSE"):
 
 @router.get("/events/{symbol}")
 def get_events(symbol: str, exchange: str = "NSE"):
-    """NSE filings, corporate actions and upcoming results for a symbol."""
-    if exchange.upper() != "NSE":
-        return {"symbol": symbol.upper(), "upcoming_results": [], "corporate_actions": [], "announcements": []}
-    return nse_data_service.get_events(symbol)
+    """Exchange filings, corporate actions and upcoming results for a symbol."""
+    exchange = exchange.upper()
+    if exchange == "NSE":
+        return nse_data_service.get_events(symbol)
+    if exchange == "BSE":
+        return bse_data_service.get_events(symbol)
+    return {"symbol": symbol.upper(), "upcoming_results": [], "corporate_actions": [], "announcements": []}
 
 @router.get("/export/{symbol}")
 def export_csv(symbol: str, period: str = "3mo", exchange: str = "NSE"):

@@ -421,7 +421,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* News Feed - Fits nicely in the sidebar */}
-                {currentSymbol && currentExchange === "NSE" && (
+                {currentSymbol && (currentExchange === "NSE" || currentExchange === "BSE") && (
                   <CorporateEvents symbol={currentSymbol} exchange={currentExchange} />
                 )}
 

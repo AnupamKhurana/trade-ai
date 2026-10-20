@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from app.core.cache import cache, QUOTE_TTL, HISTORY_TTL
 from app.services.nse_data import nse_data_service
+from app.services.bse_data import bse_data_service
 
 class MarketDataService:
     def _get_ticker(self, symbol: str, exchange: str = "NSE") -> str:
@@ -26,6 +27,12 @@ class MarketDataService:
         if symbol.upper().endswith(".BO"):
             return False
         return symbol.upper().endswith(".NS") or exchange.upper() == "NSE"
+
+    def _is_indian(self, symbol: str, exchange: str) -> bool:
+        return symbol.upper().endswith((".NS", ".BO")) or exchange.upper() in ("NSE", "BSE")
+
+    def _base_symbol(self, symbol: str) -> str:
+        return symbol.upper().removesuffix(".NS").removesuffix(".BO")
 
     def _get_screener_metrics(self, symbol: str) -> dict:
         """Fetches key financial metrics from screener.in for Indian stocks."""
@@ -79,16 +86,20 @@ class MarketDataService:
         ticker_symbol = self._get_ticker(symbol, exchange)
         ticker = yf.Ticker(ticker_symbol)
         try:
-            # NSE stocks: take price data straight from NSE; yfinance (delayed,
-            # sometimes missing small caps) is the fallback.
-            nse_quote = None
+            # Indian stocks: take price data straight from the exchange.
+            # NSE first (for NSE stocks), then BSE if the stock is listed
+            # there, then yfinance (delayed, sometimes missing small caps).
+            exch_quote, data_source = None, None
             if self._is_nse(symbol, exchange):
-                nse_quote = nse_data_service.get_quote(symbol.upper().removesuffix(".NS"))
-
-            if nse_quote:
-                current_price = nse_quote["price"]
-                previous_close = nse_quote["previous_close"]
+                exch_quote = nse_data_service.get_quote(self._base_symbol(symbol))
                 data_source = "NSE"
+            if exch_quote is None and self._is_indian(symbol, exchange):
+                exch_quote = bse_data_service.get_quote(self._base_symbol(symbol))
+                data_source = "BSE"
+
+            if exch_quote:
+                current_price = exch_quote["price"]
+                previous_close = exch_quote["previous_close"]
             else:
                 # Fetch a few days so the day change can be measured against the
                 # previous session's close, as brokers and exchanges report it.
@@ -195,15 +206,18 @@ class MarketDataService:
                         market_cap = screener_data["market_cap"]
 
             # Exchange-reported values take precedence over Yahoo and Screener
-            if nse_quote:
-                long_name = nse_quote.get("name") or long_name
-                sector = nse_quote.get("sector") or sector
-                industry = nse_quote.get("industry") or industry
-                isin = nse_quote.get("isin") or isin
-                high_52 = nse_quote.get("high_52") or high_52
-                low_52 = nse_quote.get("low_52") or low_52
-                pe_ratio = nse_quote.get("pe_ratio") or pe_ratio
-                market_cap = nse_quote.get("market_cap") or market_cap
+            if exch_quote:
+                long_name = exch_quote.get("name") or long_name
+                sector = exch_quote.get("sector") or sector
+                industry = exch_quote.get("industry") or industry
+                isin = exch_quote.get("isin") or isin
+                high_52 = exch_quote.get("high_52") or high_52
+                low_52 = exch_quote.get("low_52") or low_52
+                pe_ratio = exch_quote.get("pe_ratio") or pe_ratio
+                market_cap = exch_quote.get("market_cap") or market_cap
+                # BSE also reports these; use them only where nothing else did
+                book_value = book_value or exch_quote.get("book_value") or 0
+                roe = roe or exch_quote.get("roe") or 0
 
             # Fetch analyst recommendations
             try:
@@ -255,9 +269,9 @@ class MarketDataService:
                 "isin": isin,
                 "analyst_ratings": analyst_ratings,
                 "exchange": exchange,
-                "volume": nse_quote.get("volume") if nse_quote else None,
-                "delivery_percent": nse_quote.get("delivery_percent") if nse_quote else None,
-                "sector_pe": nse_quote.get("sector_pe") if nse_quote else None,
+                "volume": exch_quote.get("volume") if exch_quote else None,
+                "delivery_percent": exch_quote.get("delivery_percent") if exch_quote else None,
+                "sector_pe": exch_quote.get("sector_pe") if exch_quote else None,
                 "data_source": data_source,
             }
             cache.set(cache_key, result, QUOTE_TTL)
@@ -285,7 +299,7 @@ class MarketDataService:
         
         data = None
         if interval == "1d" and self._is_nse(symbol, exchange):
-            data = nse_data_service.get_daily_history(symbol.upper().removesuffix(".NS"), period)
+            data = nse_data_service.get_daily_history(self._base_symbol(symbol), period)
         if data is None or data.empty:
             data = ticker.history(period=period, interval=interval)
         

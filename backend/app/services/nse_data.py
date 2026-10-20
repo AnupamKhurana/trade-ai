@@ -1,12 +1,13 @@
 """
-NSE data provider — quotes, daily history and corporate events straight from
-NSE, via the community libraries jugaad-data and nsefin.
+NSE data provider — quotes and daily history via jugaad-data, corporate
+events (filings, actions, board meetings) via nse (NseIndiaApi).
 
 These scrape NSE's public website, so every call is best-effort: on any
 failure they return None / [] and callers fall back to yfinance.
 """
 import threading
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Optional
 
 import pandas as pd
@@ -15,7 +16,10 @@ from app.core.cache import cache
 
 NSE_QUOTE_TTL = 60          # 1 minute
 NSE_HISTORY_TTL = 300       # 5 minutes
-NSE_EVENTS_TTL = 1800       # 30 minutes (market-wide event lists)
+NSE_EVENTS_TTL = 1800       # 30 minutes
+
+# Cookie/download dir for the nse and bse clients (untracked, like backend/data)
+EXCHANGE_CACHE_DIR = Path(__file__).parent.parent.parent / "data" / "exchange_cache"
 
 # Chart periods -> calendar days of daily history to request
 PERIOD_DAYS = {
@@ -49,7 +53,7 @@ def _parse_nse_date(value: str) -> Optional[str]:
 class NSEDataService:
     def __init__(self):
         self._live = None
-        self._fin = None
+        self._nse = None
         self._lock = threading.Lock()
 
     # Clients are created lazily so importing the app never hits the network.
@@ -60,12 +64,13 @@ class NSEDataService:
                 self._live = NSELive()
             return self._live
 
-    def _fin_client(self):
+    def _nse_client(self):
         with self._lock:
-            if self._fin is None:
-                from nsefin import NSEClient
-                self._fin = NSEClient()
-            return self._fin
+            if self._nse is None:
+                from nse import NSE
+                EXCHANGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+                self._nse = NSE(download_folder=EXCHANGE_CACHE_DIR)
+            return self._nse
 
     # ------------------------------------------------------------------ #
     # Quotes                                                               #
@@ -165,81 +170,81 @@ class NSEDataService:
     # ------------------------------------------------------------------ #
     # Corporate events                                                     #
     # ------------------------------------------------------------------ #
-    def get_announcements(self, symbol: str, days: int = 30, limit: int = 15) -> list:
-        """Recent exchange filings for one company, newest first."""
-        symbol = symbol.upper()
-        cache_key = f"nse_announcements:{symbol}:{days}"
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return cached
-
-        try:
-            to_date = date.today()
-            raw = self._live_client().corporate_announcements(
-                from_date=to_date - timedelta(days=days), to_date=to_date, symbol=symbol
-            )
-        except Exception as e:
-            print(f"Warning: NSE announcements failed for {symbol}: {e}")
-            return []
-
-        items = []
-        for a in raw or []:
-            if (a.get("symbol") or "").upper() != symbol:
-                continue
-            items.append({
-                "date": _parse_nse_date(a.get("an_dt")),
-                "subject": (a.get("desc") or "").strip(),
-                "text": (a.get("attchmntText") or "").strip(),
-                "url": a.get("attchmntFile"),
-            })
-        items.sort(key=lambda x: x["date"] or "", reverse=True)
-        items = items[:limit]
-        cache.set(cache_key, items, NSE_EVENTS_TTL)
-        return items
-
-    def _market_wide(self, cache_key: str, fetch) -> list:
-        """Fetch and cache a market-wide nsefin table as a list of dicts."""
+    def _cached_events(self, cache_key: str, fetch) -> list:
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
         try:
-            df = fetch(self._fin_client())
-            rows = [] if df is None or df.empty else df.to_dict("records")
+            rows = fetch(self._nse_client()) or []
         except Exception as e:
             print(f"Warning: NSE {cache_key} failed: {e}")
             return []
         cache.set(cache_key, rows, NSE_EVENTS_TTL)
         return rows
 
-    def get_corporate_actions(self, symbol: str) -> list:
-        """Dividends, splits, bonuses etc. with ex-dates in the last 30 days."""
+    def get_announcements(self, symbol: str, days: int = 30, limit: int = 15) -> list:
+        """Recent exchange filings for one company, newest first."""
         symbol = symbol.upper()
-        rows = self._market_wide("nse_corporate_actions", lambda c: c.get_corporate_actions())
+        today = date.today()
+        raw = self._cached_events(
+            f"nse_announcements:{symbol}:{days}",
+            lambda c: c.announcements(symbol=symbol, from_date=today - timedelta(days=days), to_date=today),
+        )
+        items = [
+            {
+                "date": _parse_nse_date(a.get("an_dt")),
+                "subject": (a.get("desc") or "").strip(),
+                "text": (a.get("attchmntText") or "").strip(),
+                "url": a.get("attchmntFile"),
+            }
+            for a in raw
+            if (a.get("symbol") or "").upper() == symbol
+        ]
+        items.sort(key=lambda x: x["date"] or "", reverse=True)
+        return items[:limit]
+
+    def get_corporate_actions(self, symbol: str) -> list:
+        """Dividends, splits, bonuses etc. with ex-dates from 30 days ago to 90 days ahead."""
+        symbol = symbol.upper()
+        today = date.today()
+        raw = self._cached_events(
+            f"nse_actions:{symbol}",
+            lambda c: c.actions(symbol=symbol, from_date=today - timedelta(days=30), to_date=today + timedelta(days=90)),
+        )
         actions = [
             {
                 "subject": r.get("subject"),
                 "ex_date": _parse_nse_date(r.get("exDate")),
                 "record_date": _parse_nse_date(r.get("recDate")),
             }
-            for r in rows
+            for r in raw
             if (r.get("symbol") or "").upper() == symbol
         ]
         actions.sort(key=lambda x: x["ex_date"] or "", reverse=True)
         return actions
 
     def get_upcoming_results(self, symbol: str) -> list:
-        """Board meetings scheduled to approve financial results."""
+        """Board meetings in the next 90 days (usually results and dividends)."""
         symbol = symbol.upper()
-        rows = self._market_wide("nse_upcoming_results", lambda c: c.get_upcoming_results())
-        return [
+        today = date.today()
+        raw = self._cached_events(
+            f"nse_board_meetings:{symbol}",
+            lambda c: c.board_meetings(symbol=symbol, from_date=today, to_date=today + timedelta(days=90)),
+        )
+        meetings = [
             {
-                "date": _parse_nse_date(r.get("date")),
-                "purpose": r.get("purpose"),
+                "date": _parse_nse_date(r.get("bm_date")),
+                "purpose": "Board Meeting",
                 "description": r.get("bm_desc"),
             }
-            for r in rows
-            if (r.get("symbol") or "").upper() == symbol
+            for r in raw
+            if (r.get("bm_symbol") or "").upper() == symbol
         ]
+        # NSE often lists the same meeting twice (intimation + agenda); keep one per date
+        unique = {}
+        for m in sorted(meetings, key=lambda x: x["date"] or ""):
+            unique.setdefault(m["date"], m)
+        return list(unique.values())
 
     def get_events(self, symbol: str) -> dict:
         return {

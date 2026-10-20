@@ -16,4 +16,5 @@ httpx
 beautifulsoup4
 aiohttp
 jugaad-data
-nsefin
+nse
+bse

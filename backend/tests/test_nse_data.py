@@ -21,29 +21,30 @@ class FakeLive:
     def stock_quote(self, symbol):
         return RAW_QUOTE
 
-    def corporate_announcements(self, from_date, to_date, symbol):
+
+class FakeNse:
+    def announcements(self, symbol, from_date, to_date):
         return [
             {"symbol": "TCS", "an_dt": "16-Oct-2026 16:29:00", "desc": "Investor Meet", "attchmntText": "Schedule", "attchmntFile": "https://x/a.pdf"},
             {"symbol": "TCS", "an_dt": "19-Oct-2026 11:30:07", "desc": "Updates", "attchmntText": "Press release", "attchmntFile": "https://x/b.pdf"},
             {"symbol": "TCSOTHER", "an_dt": "19-Oct-2026 11:30:07", "desc": "Other", "attchmntText": "", "attchmntFile": None},
         ]
 
+    def actions(self, symbol, from_date, to_date):
+        return [{"symbol": "TCS", "subject": "Interim Dividend - Rs 12 Per Share", "exDate": "14-Oct-2026", "recDate": "14-Oct-2026"}]
 
-class FakeFin:
-    def get_corporate_actions(self):
-        return pd.DataFrame([
-            {"symbol": "TCS", "subject": "Interim Dividend - Rs 12 Per Share", "exDate": "14-Oct-2026", "recDate": "14-Oct-2026"},
-            {"symbol": "INFY", "subject": "Dividend", "exDate": "01-Oct-2026", "recDate": "-"},
-        ])
-
-    def get_upcoming_results(self):
-        return pd.DataFrame([{"symbol": "INFY", "purpose": "Financial Results", "bm_desc": "Q2", "date": "23-Oct-2026"}])
+    def board_meetings(self, symbol, from_date, to_date):
+        # NSE lists the same meeting twice
+        return [
+            {"bm_symbol": "TCS", "bm_date": "23-Oct-2026", "bm_desc": "Results and dividend"},
+            {"bm_symbol": "TCS", "bm_date": "23-Oct-2026", "bm_desc": "Board Meeting Intimation"},
+        ]
 
 
 @pytest.fixture
 def fake_nse(monkeypatch):
     monkeypatch.setattr(nse_data_service, "_live_client", lambda: FakeLive())
-    monkeypatch.setattr(nse_data_service, "_fin_client", lambda: FakeFin())
+    monkeypatch.setattr(nse_data_service, "_nse_client", lambda: FakeNse())
 
 
 def test_quote_is_normalized(fake_nse):
@@ -108,15 +109,16 @@ def test_unsupported_period_uses_fallback():
     assert nse_data_service.get_daily_history("TCS", "5d") is None
 
 
-def test_events_are_filtered_to_symbol_and_sorted(fake_nse):
+def test_events_are_filtered_to_symbol_sorted_and_deduplicated(fake_nse):
     events = nse_data_service.get_events("TCS")
 
     assert [a["subject"] for a in events["announcements"]] == ["Updates", "Investor Meet"]
     assert events["corporate_actions"] == [
         {"subject": "Interim Dividend - Rs 12 Per Share", "ex_date": "2026-10-14T00:00:00", "record_date": "2026-10-14T00:00:00"}
     ]
-    assert events["upcoming_results"] == []
-    assert nse_data_service.get_upcoming_results("INFY")[0]["date"] == "2026-10-23T00:00:00"
+    assert events["upcoming_results"] == [
+        {"date": "2026-10-23T00:00:00", "purpose": "Board Meeting", "description": "Results and dividend"}
+    ]
 
 
 def test_events_are_empty_when_nse_is_down():

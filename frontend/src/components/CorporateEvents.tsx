@@ -46,21 +46,26 @@ export function CorporateEvents({ symbol, exchange = "NSE" }: CorporateEventsPro
         <Card className="dense-card border border-border bg-card">
             <CardHeader className="flex flex-row items-center gap-2 pb-2 border-b border-border p-4">
                 <CalendarDays className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm font-bold uppercase tracking-wide text-foreground">Corporate Events: {symbol}</CardTitle>
+                <CardTitle className="text-sm font-bold uppercase tracking-wide text-foreground">Corporate Events: {symbol} ({exchange})</CardTitle>
             </CardHeader>
             <CardContent className="p-0 max-h-[400px] overflow-auto text-xs">
                 {loading ? (
-                    <div className="p-8 text-center text-muted-foreground animate-pulse">Fetching NSE filings...</div>
+                    <div className="p-8 text-center text-muted-foreground animate-pulse">Fetching {exchange} filings...</div>
                 ) : !events || isEmpty ? (
-                    <div className="p-8 text-center text-muted-foreground">No recent NSE filings or corporate actions.</div>
+                    <div className="p-8 text-center text-muted-foreground">No recent {exchange} filings or corporate actions.</div>
                 ) : (
                     <div className="divide-y divide-border">
                         {(events.upcoming_results.length > 0 || events.corporate_actions.length > 0) && (
                             <div className="p-4 space-y-2">
                                 {events.upcoming_results.map((r, i) => (
-                                    <div key={`r${i}`} className="flex justify-between gap-2" title={r.description}>
-                                        <span className="font-semibold text-foreground">{r.purpose}</span>
-                                        <span className="font-mono text-primary whitespace-nowrap">{formatDate(r.date)}</span>
+                                    <div key={`r${i}`} className="space-y-0.5">
+                                        <div className="flex justify-between gap-2">
+                                            <span className="font-semibold text-foreground">{r.purpose}</span>
+                                            <span className="font-mono text-primary whitespace-nowrap">{formatDate(r.date)}</span>
+                                        </div>
+                                        {r.description && (
+                                            <p className="text-muted-foreground line-clamp-2" title={r.description}>{r.description}</p>
+                                        )}
                                     </div>
                                 ))}
                                 {events.corporate_actions.map((a, i) => (

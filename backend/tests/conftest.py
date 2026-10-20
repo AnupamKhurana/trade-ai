@@ -17,12 +17,15 @@ def clear_cache():
 
 @pytest.fixture(autouse=True)
 def no_nse_network(monkeypatch):
-    """Tests never reach NSE; individual tests install fakes where needed."""
+    """Tests never reach NSE or BSE; individual tests install fakes where needed."""
     from app.services import nse_data
 
     def offline(*args, **kwargs):
         raise ConnectionError("NSE disabled in tests")
 
+    from app.services import bse_data
+
     monkeypatch.setattr(nse_data.nse_data_service, "_live_client", offline)
-    monkeypatch.setattr(nse_data.nse_data_service, "_fin_client", offline)
+    monkeypatch.setattr(nse_data.nse_data_service, "_nse_client", offline)
+    monkeypatch.setattr(bse_data.bse_data_service, "_call", offline)
     monkeypatch.setattr("jugaad_data.nse.stock_df", offline)

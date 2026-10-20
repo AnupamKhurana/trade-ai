@@ -28,16 +28,19 @@ class NewsAggregator:
                     results.append(item)
 
         # 0. Exchange filings — the most price-relevant "news" for NSE stocks
-        if exchange.upper() == "NSE":
-            from app.services.nse_data import nse_data_service
-            filings = nse_data_service.get_announcements(symbol, days=14, limit=5)
+        if exchange.upper() in ("NSE", "BSE"):
+            if exchange.upper() == "NSE":
+                from app.services.nse_data import nse_data_service as exchange_data
+            else:
+                from app.services.bse_data import bse_data_service as exchange_data
+            filings = exchange_data.get_announcements(symbol, days=14, limit=5)
             add_results([
                 {
                     "title": f"{symbol.upper()} filing: {f['subject']}",
                     "body": f["text"],
                     "href": f["url"],
                     "date": f["date"],
-                    "source": "NSE",
+                    "source": exchange.upper(),
                 }
                 for f in filings
                 if f.get("url")

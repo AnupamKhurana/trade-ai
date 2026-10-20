@@ -77,26 +77,36 @@ def get_stock_data(symbol: str, exchange: str) -> str:
 # ------------------------------------------------------------------ #
 # Tool: NSE corporate events                                           #
 # ------------------------------------------------------------------ #
-def get_corporate_events(symbol: str) -> str:
+def get_corporate_events(symbol: str, exchange: str = "NSE") -> str:
     """
-    Fetch official NSE corporate events for an Indian stock: recent exchange
-    filings/announcements, dividends/splits/bonuses, and upcoming results dates.
-    Use this for questions about results, dividends, filings or company news.
+    Fetch official exchange corporate events for an Indian stock: recent
+    filings/announcements, dividends/splits/bonuses, and upcoming results or
+    board meeting dates. Use this for questions about results, dividends,
+    filings or company news.
 
     Args:
-        symbol: The NSE stock symbol (e.g., RELIANCE, TCS).
+        symbol: The stock symbol (e.g., RELIANCE, TCS).
+        exchange: NSE or BSE.
     """
+    exchange = (exchange or "NSE").upper()
     try:
-        from app.services.nse_data import nse_data_service
-        events = nse_data_service.get_events(symbol)
+        if exchange == "BSE":
+            from app.services.bse_data import bse_data_service as exchange_data
+        else:
+            exchange = "NSE"
+            from app.services.nse_data import nse_data_service as exchange_data
+        events = exchange_data.get_events(symbol)
     except Exception as e:
         return f"Error fetching corporate events for {symbol}: {e}"
 
-    lines = [f"NSE corporate events for {events['symbol']}:"]
+    lines = [f"{exchange} corporate events for {events['symbol']}:"]
     results = events["upcoming_results"]
-    lines.append("Upcoming results: " + ("; ".join(f"{r['date'][:10] if r['date'] else 'TBA'} ({r['purpose']})" for r in results) or "none scheduled"))
+    lines.append("Upcoming results / board meetings: " + ("; ".join(
+        f"{r['date'][:10] if r['date'] else 'TBA'} {r['purpose']}" + (f" - {r['description'][:150]}" if r.get('description') else "")
+        for r in results
+    ) or "none scheduled"))
     actions = events["corporate_actions"]
-    lines.append("Corporate actions (last 30 days): " + ("; ".join(f"{a['subject']} (ex-date {a['ex_date'][:10] if a['ex_date'] else 'N/A'})" for a in actions) or "none"))
+    lines.append("Corporate actions (last 30 days and upcoming): " + ("; ".join(f"{a['subject']} (ex-date {a['ex_date'][:10] if a['ex_date'] else 'N/A'})" for a in actions) or "none"))
     lines.append("Recent filings:")
     for a in events["announcements"][:8]:
         when = a["date"][:10] if a["date"] else "N/A"
@@ -141,7 +151,7 @@ def get_agent_harness(symbol: Optional[str] = None, exchange: str = "NSE") -> st
         f"You have three tools available:\n"
         f"  • web_search — search the internet for live news, prices, analyst reports, earnings.\n"
         f"  • get_stock_data — fetch live technical indicators (RSI, MACD, SMA) for any stock.\n"
-        f"  • get_corporate_events — official NSE filings, dividends/splits and upcoming results dates.\n\n"
+        f"  • get_corporate_events — official NSE/BSE filings, dividends/splits and upcoming results dates.\n\n"
         f"Workflow:\n"
         f"  1. For any question requiring real-time or recent data, ALWAYS call a tool first.\n"
         f"  2. Synthesise tool results with your analysis before responding.\n"
