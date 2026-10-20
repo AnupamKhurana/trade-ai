@@ -3,6 +3,7 @@
 # Backend
 backend/venv/
 backend/data/
+backend/app/data/
 __pycache__/
 *.pyc
 backend/__pycache__/
