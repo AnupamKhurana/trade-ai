@@ -74,7 +74,7 @@ export function CompanyInfo({ data }: CompanyInfoProps) {
                         </span>
                     </div>
                     <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium mt-1">
-                        {data.data_source ? `Source: ${data.data_source}` : "Market Data"} • {data.exchange}
+                        {data.data_source ? `Source: ${data.data_source}` : "Market Data"}{data.data_source !== data.exchange ? ` • ${data.exchange}` : ""}
                     </div>
                 </div>
             </div>

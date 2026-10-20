@@ -7,10 +7,26 @@ from app.services.news import news_service
 from app.services.stock_updater import stock_update_service
 from app.services.nse_data import nse_data_service
 from app.services.bse_data import bse_data_service
+from app.services.market_overview import market_overview_service
 import csv
 import io
 
 router = APIRouter()
+
+@router.get("/overview")
+def get_overview():
+    """Market status, index levels and advance/decline breadth (NSE)."""
+    return market_overview_service.get_overview()
+
+@router.get("/fii-dii")
+def get_fii_dii():
+    """Latest-session FII/FPI and DII buy/sell/net activity in ₹ crore."""
+    return market_overview_service.get_fii_dii()
+
+@router.get("/deals")
+def get_deals(days: int = 7, symbol: str | None = None):
+    """Recent NSE bulk and block deals, optionally for one symbol."""
+    return market_overview_service.get_deals(days=days, symbol=symbol)
 
 @router.get("/symbols")
 def get_symbols():

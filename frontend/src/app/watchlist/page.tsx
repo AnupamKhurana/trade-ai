@@ -103,6 +103,7 @@ export default function WatchlistPage() {
                         <Link href="/" className="hover:text-foreground">Dashboard</Link>
                         <Link href="/watchlist" className="text-foreground font-bold">Watchlist</Link>
                         <Link href="/portfolio" className="hover:text-foreground">Portfolio</Link>
+                        <Link href="/market" className="hover:text-foreground">Market</Link>
                         <Link href="/compare" className="hover:text-foreground">Compare</Link>
                         <ThemeToggle />
                     </div>

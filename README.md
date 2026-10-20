@@ -8,6 +8,7 @@ TradeAI Terminal is an AI-powered stock market intelligence and analysis dashboa
 
 - **📊 Comprehensive Market Tracking**: View real-time prices, stock details, and historical interactive charts (supporting custom period/interval selection).
 - **🇮🇳 Exchange-first Data**: Indian stocks get quotes, ratios and corporate events straight from the exchanges. NSE quotes and daily history (with delivery %) come from [jugaad-data](https://github.com/jugaad-py/jugaad-data); NSE filings, dividends/splits and board meetings from [nse](https://github.com/BennyThadikaran/NseIndiaApi); BSE quotes, ratios and events from [bse](https://github.com/BennyThadikaran/BseIndiaApi). If NSE is unreachable the app uses BSE (when the stock is listed there), then Yahoo Finance, which also covers US stocks and intraday charts.
+- **🏛️ Market Overview**: NSE index levels, market breadth, FII/DII net buying and selling, and the latest bulk and block deals, all from free exchange data (jugaad-data and nse), on the Market page.
 - **💼 Portfolio & Watchlist Managers**: Track your investments and keep a close eye on stocks you monitor. Your portfolio data and watchlists are stored safely and privately in local JSON files.
 - **📰 Smart News Aggregation**: Automatically fetches the latest financial news for any stock ticker using DuckDuckGo search.
 - **🤖 Agentic Advisor & Multi-Tool Chat**: Chat with a smart advisor that automatically routes your queries, searches the web for current data, and helps you make sense of complex financial trends.

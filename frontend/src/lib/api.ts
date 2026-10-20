@@ -38,6 +38,51 @@ export interface CorporateEventsResponse {
     announcements: { date: string | null; subject: string; text: string; url: string | null }[];
 }
 
+export interface MarketIndex {
+    name: string;
+    group: string;
+    last: number;
+    change: number | null;
+    change_percent: number | null;
+    previous_close: number | null;
+    open: number | null;
+    high: number | null;
+    low: number | null;
+    year_high: number | null;
+    year_low: number | null;
+    pe: number | null;
+    pb: number | null;
+    dividend_yield: number | null;
+    change_30d_percent: number | null;
+    change_1y_percent: number | null;
+}
+
+export interface MarketOverviewResponse {
+    status: { open: boolean; message: string; as_of: string } | null;
+    indices: MarketIndex[];
+    headline: MarketIndex[];
+    breadth: { advances: number; declines: number; unchanged: number } | null;
+}
+
+export interface FiiDiiRow {
+    category: string;
+    date: string | null;
+    buy: number | null;
+    sell: number | null;
+    net: number | null;
+}
+
+export interface Deal {
+    date: string | null;
+    type: "Bulk" | "Block";
+    symbol: string;
+    name: string;
+    client: string;
+    side: string;
+    quantity: number | null;
+    price: number | null;
+}
+
 export const api = {
     async getSymbols(): Promise<{ symbol: string; name: string }[]> {
         const res = await fetch(`${API_URL}/market/symbols`);
@@ -195,6 +240,27 @@ export const api = {
     async getEvents(symbol: string, exchange: string = "NSE"): Promise<CorporateEventsResponse> {
         const res = await fetch(`${API_URL}/market/events/${symbol}?exchange=${exchange}`);
         if (!res.ok) throw new Error("Failed to fetch corporate events");
+        return res.json();
+    },
+
+    // Market-wide data (NSE)
+    async getMarketOverview(): Promise<MarketOverviewResponse> {
+        const res = await fetch(`${API_URL}/market/overview`);
+        if (!res.ok) throw new Error("Failed to fetch market overview");
+        return res.json();
+    },
+
+    async getFiiDii(): Promise<FiiDiiRow[]> {
+        const res = await fetch(`${API_URL}/market/fii-dii`);
+        if (!res.ok) throw new Error("Failed to fetch FII/DII activity");
+        return res.json();
+    },
+
+    async getDeals(days: number = 7, symbol?: string): Promise<Deal[]> {
+        const params = new URLSearchParams({ days: String(days) });
+        if (symbol) params.set("symbol", symbol);
+        const res = await fetch(`${API_URL}/market/deals?${params}`);
+        if (!res.ok) throw new Error("Failed to fetch bulk/block deals");
         return res.json();
     },
 
